@@ -86,7 +86,7 @@ inputCorner.CornerRadius = UDim.new(0, 6)
 inputCorner.Parent = numberInput
 
 
--- 5. TẠO UI PHỤ BẬT/TẮT (Widget 50x50 tiêu chuẩn giống Auto TP)
+-- 5. TẠO UI PHỤ BẬT/TẮT (Widget 50x50)
 local widgetFrame = Instance.new("Frame")
 widgetFrame.Name = "FloatWidget"
 widgetFrame.Size = UDim2.new(0, 50, 0, 50) 
@@ -115,12 +115,14 @@ wBtnCorner.CornerRadius = UDim.new(0, 10)
 wBtnCorner.Parent = widgetBtn
 
 
---- LOGIC FLOAT ĐỘ CAO CỔ ĐIỂN SIÊU MƯỢT ---
+--- =================================================== ---
+---        CHỈ SỬA ĐỔI: CƠ CHẾ FLOAT TẤM VÁN CỔ ĐIỂN     ---
+--- =================================================== ---
 local floatEnabled = false
-local bodyVelocity = nil
+local floatPart = nil
 
-local function removeForce()
-	if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
+local function removeFloatPart()
+	if floatPart then floatPart:Destroy() floatPart = nil end
 end
 
 local function setFloatState(state)
@@ -131,7 +133,7 @@ local function setFloatState(state)
 	else
 		widgetBtn.Text = "FLOAT\nOFF"
 		widgetBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-		removeForce()
+		removeFloatPart()
 	end
 end
 
@@ -142,40 +144,46 @@ widgetBtn.MouseButton1Up:Connect(function()
 	end
 end)
 
--- Vòng lặp khóa độ cao trục Y bằng BodyVelocity
+-- Vòng lặp tạo và cập nhật tấm ván Float cổ điển
 task.spawn(function()
 	while true do
-		task.wait(0.01) -- Quét liên tục để triệt tiêu lực rơi lập tức
+		task.wait(0.01) -- Chạy liên tục để bám sát vị trí nhân vật
 		if floatEnabled then
 			local char = localPlayer.Character
 			local rootPart = char and char:FindFirstChild("HumanoidRootPart")
 			local targetY = tonumber(numberInput.Text)
 			
 			if rootPart and targetY then
-				-- NẾU NHÂN VẬT CHẠM HOẶC THẤP HƠN ĐỘ CAO CÀI ĐẶT
-				if rootPart.Position.Y <= targetY then
-					-- Giữ cứng vị trí trục Y chuẩn số nhập, X và Z tự do di chuyển
-					rootPart.CFrame = CFrame.new(rootPart.Position.X, targetY, rootPart.Position.Z)
-					
-					-- Tạo BodyVelocity chặn lực rơi riêng cho trục Y
-					if not rootPart:FindFirstChild("ClassicFloatForce") then
-						removeForce()
-						bodyVelocity = Instance.new("BodyVelocity")
-						bodyVelocity.Name = "ClassicFloatForce"
-						bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0) -- Chỉ khóa duy nhất trục Y (độ cao)
-						bodyVelocity.Velocity = Vector3.new(0, 0, 0) -- Triệt tiêu vận tốc rơi tự do về 0
-						bodyVelocity.Parent = rootPart
+				-- Chỉ kích hoạt khi nhân vật ở gần hoặc rơi xuống dưới độ cao mục tiêu
+				if rootPart.Position.Y <= targetY + 3 then
+					-- Nếu chưa có tấm ván, tạo mới một tấm ván tàng hình thực sự
+					if not floatPart or not floatPart.Parent then
+						removeFloatPart()
+						floatPart = Instance.new("Part")
+						floatPart.Name = "ClassicFloatPlatform"
+						floatPart.Size = Vector3.new(12, 1, 12) -- Kích thước ván rộng rãi để di chuyển không lo trượt
+						floatPart.Transparency = 1 -- Để bằng 1 để tàng hình hoàn toàn, không lộ
+						floatPart.Anchored = true
+						floatPart.CanCollide = true -- Bật va chạm thực tế để đứng chân lên mượt mà
+						floatPart.Parent = workspace
 					end
+					
+					-- Đồng bộ vị trí tấm ván liên tục theo X và Z của bạn, nhưng khóa chặt trục Y ở độ cao mục tiêu
+					-- Trừ đi 3.2 để tính toán khoảng cách từ thắt lưng (HumanoidRootPart) xuống lòng bàn chân
+					floatPart.CFrame = CFrame.new(rootPart.Position.X, targetY - 3.2, rootPart.Position.Z)
 				else
-					-- Nếu nhảy lên cao hơn mức cài đặt thì giải phóng lực để rơi xuống tự nhiên
-					removeForce()
+					-- Nếu bạn chủ động nhảy lên cao hơn độ cao mục tiêu, xóa ván tạm thời để rơi tự nhiên
+					removeFloatPart()
 				end
+			else
+				removeFloatPart()
 			end
 		else
-			removeForce()
+			removeFloatPart()
 		end
 	end
 end)
+--- =================================================== ---
 
 
 -- 6. HỆ THỐNG KÉO THẢ CHUẨN KHÔNG LỖI
